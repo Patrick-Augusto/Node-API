@@ -1,5 +1,5 @@
 const User = require('../models/User');
-
+const bcrypt = require('bcryptjs');
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -10,16 +10,23 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+
 exports.createUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-    const user = new User({ name, email, password, role });
+
+   
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = new User({ name, email, password: hashedPassword, role });
     await user.save();
     res.status(201).json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 exports.updateUser = async (req, res) => {
   try {
@@ -33,8 +40,12 @@ exports.updateUser = async (req, res) => {
 
     if (name) user.name = name;
     if (email) user.email = email;
-    if (password) user.password = password; 
     if (role) user.role = role;
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
 
     await user.save();
     res.json(user);
@@ -49,7 +60,7 @@ exports.deleteUser = async (req, res) => {
     const user = await User.findByIdAndDelete(userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario nao localizado' });
+      return res.status(404).json({ message: 'Usuario nao encontrado' });
     }
 
     res.json({ message: 'Usurio deletado com sucesso' });
@@ -74,4 +85,3 @@ exports.getUserCountByRole = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
